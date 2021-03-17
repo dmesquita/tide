@@ -528,6 +528,7 @@ class TIDE:
 	def summarize(self):
 		""" Summarizes the mAP values and errors for all runs in this TIDE object. Results are printed to the console. """
 		main_errors    = self.get_main_errors()
+		main_per_class_errors = self.get_main_per_class_errors()
 		special_errors = self.get_special_errors()
 
 		for run_name, run in self.runs.items():
