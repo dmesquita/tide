@@ -138,6 +138,7 @@ class TIDERun:
 		self.preds  = preds
 
 		self.errors     = []
+		self.per_class_errors = []
 		self.error_dict = {_type: [] for _type in TIDE._error_types}
 		self.ap_data = ClassedAPDataObject()
 		self.qualifiers = {}
@@ -177,6 +178,7 @@ class TIDERun:
 			error.disabled = False
 		
 		self.ap = self.ap_data.get_mAP()
+		self.per_classes_ap = self.ap_data.get_per_class_APs()
 
 		# Now that we've stored the fixed errors, we can clear the gt info
 		self._clear()
@@ -329,6 +331,39 @@ class TIDERun:
 			new_ap_data.add_gt_positives(k, v)
 			
 		return new_ap_data
+    
+	def fix_main_per_class_errors(self, progressive: bool = False, error_types: list = None, qual: Qualifier = None) -> dict:
+		ap_data = self.ap_data
+		last_per_class_ap = self.per_classes_ap
+
+		if qual is None:
+			qual = Qualifier('', None)
+
+		if error_types is None:
+			error_types = TIDE._error_types
+
+		errors_per_class = {}
+		for error in error_types:
+			_ap_data = self.fix_errors(qual._make_error_func(error),
+									   ap_data=ap_data, disable_errors=progressive)
+
+			new_per_class_ap = _ap_data.get_per_class_APs()
+			# If an error is negative that means it's likely due to binning differences, so just
+			# Ignore the negative by setting it to 0.
+			errors_per_class[error] = {k: max(new_per_class_ap[k] - last_per_class_ap[k], 0)
+									   for k in new_per_class_ap.keys()
+									   }
+
+			if progressive:
+				last_per_class_ap = new_per_class_ap
+				ap_data = _ap_data
+
+		# TODO: progressive
+		if progressive:
+			for error in self.errors:
+				error.disabled = False
+
+		return errors_per_class
 
 	def fix_main_errors(self, progressive:bool=False, error_types:list=None, qual:Qualifier=None) -> dict:
 		ap_data = self.ap_data
@@ -435,6 +470,7 @@ class TIDE:
 		self.runs = {}
 		self.run_thresholds = {}
 		self.run_main_errors = {}
+		self.run_main_per_class_errors = {}
 		self.run_special_errors = {}
 
 		self.qualifiers = OrderedDict()
@@ -552,8 +588,17 @@ class TIDE:
 				[' dAP'] + ['{:6.2f}'.format(main_errors[run_name][err.short_name]) for err in TIDE._error_types]
 			], title='Main Errors')
 
-			
-				
+			print()
+			# Print the per class errors
+			P.print_table(
+				[['class'] + ['Type'] + [err.short_name for err in TIDE._error_types]]
+				+
+				[[run.gt.classes[k]] + [' dAP'] + ['{:6.2f}'.format(main_per_class_errors[run_name][err.short_name][k])
+								   for err in TIDE._error_types]
+				 for k in sorted(main_per_class_errors[run_name][TIDE._error_types[0].short_name].keys())]
+			, title='Main Per Class Errors')
+                
+
 			print()
 			# Print the special errors
 			P.print_table([
@@ -618,7 +663,21 @@ class TIDE:
 				}
 		
 		return errors
-	
+    
+	def get_main_per_class_errors(self):
+		errors = {}
+
+		for run_name, run in self.runs.items():
+			if run_name in self.run_main_per_class_errors:
+				errors[run_name] = self.run_main_per_class_errors[run_name]
+			else:
+				errors[run_name] = {
+					error.short_name: value
+					for error, value in run.fix_main_per_class_errors().items()
+				}
+
+		return errors
+
 	def get_all_errors(self):
 		"""
 		returns {
