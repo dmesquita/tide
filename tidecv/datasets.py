@@ -57,7 +57,7 @@ def download_annotations(name:str, url:str, force_download:bool=False) -> str:
 
 
 
-def COCO(path:str=None, name:str=None, year:int=2017, ann_set:str='val', force_download:bool=False) -> Data:
+def COCO(path:str=None, annotations:dict=None, name:str=None, year:int=2017, ann_set:str='val', force_download:bool=False) -> Data:
 	"""
 	Loads ground truth from a COCO-style annotation file.
 	
@@ -74,8 +74,11 @@ def COCO(path:str=None, name:str=None, year:int=2017, ann_set:str='val', force_d
 	
 	if name is None: name = default_name(path)
 	
-	with open(path, 'r') as json_file:
-		cocojson = json.load(json_file)
+	if annotations is not None:
+		cocojson = annotations
+	else:
+		with open(path, 'r') as json_file:
+			cocojson = json.load(json_file)
 	
 	images = cocojson['images']
 	anns   = cocojson['annotations']
@@ -109,12 +112,15 @@ def COCO(path:str=None, name:str=None, year:int=2017, ann_set:str='val', force_d
 	
 	return data
 
-def COCOResult(path:str, name:str=None) -> Data:
+def COCOResult(path:str, annotations:dict=None, name:str=None) -> Data:
 	""" Loads predictions from a COCO-style results file. """
 	if name is None: name = default_name(path)
 	
-	with open(path, 'r') as json_file:
-		dets = json.load(json_file)
+	if annotations is not None:
+		dets = annotations
+	else:
+		with open(path, 'r') as json_file:
+			dets = json.load(json_file)
 
 	data = Data(name)
 
