@@ -65,7 +65,7 @@ def COCO(path:str=None, annotations_dict:dict=None, name:str=None, year:int=2017
 	if name is None: name = "annotations"
 	
 	if annotations_dict is not None:
-		cocojson = annotations
+		cocojson = annotations_dict
 	else:
 		with open(path, 'r') as json_file:
 			cocojson = json.load(json_file)
