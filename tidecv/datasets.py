@@ -102,7 +102,7 @@ def COCO(path:str=None, annotations_dict:dict=None, name:str=None, year:int=2017
 	
 	return data
 
-def COCOResult(path:str, predictions_dict:dict=None, name:str=None) -> Data:
+def COCOResult(path:str=None, predictions_dict:dict=None, name:str=None) -> Data:
 	""" Loads predictions from a COCO-style results file. """
 	if name is None: name = "predictions"
 	
