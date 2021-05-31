@@ -57,25 +57,18 @@ def download_annotations(name:str, url:str, force_download:bool=False) -> str:
 
 
 
-def COCO(path:str=None, name:str=None, year:int=2017, ann_set:str='val', force_download:bool=False) -> Data:
+def COCO(path:str=None, annotations_dict:dict=None, name:str=None, year:int=2017, ann_set:str='val', force_download:bool=False) -> Data:
 	"""
 	Loads ground truth from a COCO-style annotation file.
-	
-	If path is not specified, this will download the COCO annotations for the year and ann_set specified.
-	Valid years are 2014, 2017 and valid ann_sets are 'val' and 'train'.
 	"""
-	if path is None:
-		path = download_annotations(
-			'COCO{}'.format(year),
-			'http://images.cocodataset.org/annotations/annotations_trainval{}.zip'.format(year),
-			force_download)
-
-		path = os.path.join(path, 'annotations', 'instances_{}{}.json'.format(ann_set, year))
 	
-	if name is None: name = default_name(path)
+	if name is None: name = "annotations"
 	
-	with open(path, 'r') as json_file:
-		cocojson = json.load(json_file)
+	if annotations_dict is not None:
+		cocojson = annotations_dict
+	else:
+		with open(path, 'r') as json_file:
+			cocojson = json.load(json_file)
 	
 	images = cocojson['images']
 	anns   = cocojson['annotations']
@@ -99,21 +92,25 @@ def COCO(path:str=None, name:str=None, year:int=2017, ann_set:str='val', force_d
 		image  = ann['image_id']
 		_class = ann['category_id']
 		box    = ann['bbox']
-		if ann.get('segmentation'):
+		if 'segmentation' in ann:
 			mask   = f.toRLE(ann['segmentation'], image_lookup[image]['width'], image_lookup[image]['height'])
 		else:
-			mask   = None
-		if ann.get('iscrowd') and ann['iscrowd']: data.add_ignore_region(image, _class, box, mask)
+			mask = None
+		
+		if ann['iscrowd']: data.add_ignore_region(image, _class, box, mask)
 		else:              data.add_ground_truth (image, _class, box, mask)
 	
 	return data
 
-def COCOResult(path:str, name:str=None) -> Data:
+def COCOResult(path:str=None, predictions_dict:dict=None, name:str=None) -> Data:
 	""" Loads predictions from a COCO-style results file. """
-	if name is None: name = default_name(path)
+	if name is None: name = "predictions"
 	
-	with open(path, 'r') as json_file:
-		dets = json.load(json_file)
+	if predictions_dict is not None:
+		dets = predictions_dict
+	else:
+		with open(path, 'r') as json_file:
+			dets = json.load(json_file)
 
 	data = Data(name)
 
